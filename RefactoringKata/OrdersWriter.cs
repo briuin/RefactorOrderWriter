@@ -1,4 +1,6 @@
-﻿using System.Text;
+﻿using System.Collections.Generic;
+using System.Text;
+using System.Linq;
 
 namespace RefactoringKata
 {
@@ -13,95 +15,115 @@ namespace RefactoringKata
 
         public string GetContents()
         {
-            var sb = new StringBuilder("{\"orders\": [");
+            return orderJsonFormat();
+        }
+
+        private string orderJsonFormat()
+        {
+            Dictionary<string, string> orderDetails = new Dictionary<string, string>()
+            {
+                {"orders", generateStringWithbrackets(generateOrderInfo())}
+            };
+
+            return generateJsonObject(orderDetails);
+
+        }
+
+        private string generateOrderInfo()
+        {
+
+            var sb = new StringBuilder();
 
             for (var i = 0; i < _orders.GetOrdersCount(); i++)
             {
-                var order = _orders.GetOrder(i);
-                sb.Append("{");
-                sb.Append("\"id\": ");
-                sb.Append(order.GetOrderId());
-                sb.Append(", ");
-                sb.Append("\"products\": [");
-
-                for (var j = 0; j < order.GetProductsCount(); j++)
-                {
-                    var product = order.GetProduct(j);
-                    sb.Append("{");
-                    sb.Append("\"code\": \"");
-                    sb.Append(product.Code);
-                    sb.Append("\", ");
-                    sb.Append("\"color\": \"");
-                    sb.Append(getColorFor(product));
-                    sb.Append("\", ");
-
-                    if (product.Size != Product.SIZE_NOT_APPLICABLE)
-                    {
-                        sb.Append("\"size\": \"");
-                        sb.Append(getSizeFor(product));
-                        sb.Append("\", ");
-                    }
-
-                    sb.Append("\"price\": ");
-                    sb.Append(product.Price);
-                    sb.Append(", ");
-                    sb.Append("\"currency\": \"");
-                    sb.Append(product.Currency);
-                    sb.Append("\"}, ");
-                }
-
-                if (order.GetProductsCount() > 0)
-                {
-                    sb.Remove(sb.Length - 2, 2);
-                }
-
-                sb.Append("]");
-                sb.Append("}, ");
+                sb.Append(generateSingleOrderInfo(_orders.GetOrder(i)));
+                if (i < _orders.GetOrdersCount() - 1) sb.Append(", ");
             }
 
-            if (_orders.GetOrdersCount() > 0)
-            {
-                sb.Remove(sb.Length - 2, 2);
-            }
-
-            return sb.Append("]}").ToString();
+            return sb.ToString();
         }
 
-
-        private string getSizeFor(Product product)
+        private string generateSingleOrderInfo(Order order)
         {
-            switch (product.Size)
+            Dictionary<string, string> orderDetails = new Dictionary<string, string>()
             {
-                case 1:
-                    return "XS";
-                case 2:
-                    return "S";
-                case 3:
-                    return "M";
-                case 4:
-                    return "L";
-                case 5:
-                    return "XL";
-                case 6:
-                    return "XXL";
-                default:
-                    return "Invalid Size";
-            }
+                {"id",order.GetOrderId().ToString()},
+                {"products", generateStringWithbrackets(generateProductsInfo(order))}
+            };
+
+            return generateJsonObject(orderDetails);
         }
 
-        private string getColorFor(Product product)
+        private string generateProductsInfo(Order order)
         {
-            switch (product.Color)
+            var sb = new StringBuilder();
+            for (var j = 0; j < order.GetProductsCount(); j++)
             {
-                case 1:
-                    return "blue";
-                case 2:
-                    return "red";
-                case 3:
-                    return "yellow";
-                default:
-                    return "no color";
+                sb.Append(generateSingleProductInfo(order.GetProduct(j)));
             }
+
+            return sb.ToString();
+        }
+
+        private string generateSingleProductInfo(Product product)
+        {
+            Dictionary<string, string> productDetails = new Dictionary<string, string>()
+            {
+                    {"code", product.Code},
+                    {"color", product.getColor()},
+                    {"size", product.getSize()},
+                    {"price", product.Price.ToString()},
+                    {"currency", product.Currency}
+            };
+
+            if (productSizeNotApplicable(productDetails["size"]))
+                productDetails.Remove("size");
+
+            return generateJsonObject(productDetails);
+        }
+
+        private string generateJsonObject(Dictionary<string, string> objects)
+        {
+            var sb = new StringBuilder();
+            foreach (var singleobject in objects)
+            {
+                sb.Append(genarateProperty(singleobject.Key, singleobject.Value));
+                if (singleobject.Key != objects.Keys.Last()) sb.Append(", ");
+            }
+
+            return generateStringWithBraces(sb.ToString());
+        }
+
+        private string genarateProperty(string key, string value)
+        {
+            double number;
+            value = double.TryParse(value, out number) || isJsonArrayOrObject(value) ? value  : genarateStringWithDoubleQuotes(value);
+            return genarateStringWithDoubleQuotes(key) + ": " + value;
+        }
+
+        private bool isJsonArrayOrObject(string stringValue)
+        {
+            return stringValue.ElementAt(0) == '[' || stringValue.ElementAt(0) == '{';
+        }
+
+        private string generateStringWithbrackets(string stringValue)
+        {
+            return "[" + stringValue + "]";
+        }
+
+        private string generateStringWithBraces(string stringValue)
+        {
+            return "{" + stringValue + "}";
+        }
+
+        private string genarateStringWithDoubleQuotes(string stringValue)
+        {
+            return "\"" + stringValue + "\"";
+        }
+
+        private bool productSizeNotApplicable(string sizeValue)
+        {
+            return sizeValue == (Product.SIZE_NOT_APPLICABLE).ToString();
         }
     }
 }
